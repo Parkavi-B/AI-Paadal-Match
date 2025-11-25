@@ -2,9 +2,7 @@ import streamlit as st
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
-# ---------------------------------------------------------
 # Load Spotify credentials from Streamlit Secrets
-# ---------------------------------------------------------
 CLIENT_ID = st.secrets["CLIENT_ID"]
 CLIENT_SECRET = st.secrets["CLIENT_SECRET"]
 
@@ -13,31 +11,14 @@ sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
     client_secret=CLIENT_SECRET
 ))
 
-# ---------------------------------------------------------
-# Mood → Tamil Song Mapping
-# ---------------------------------------------------------
-songs = {
-    "love": "Ennavale Adi Ennavale",
-    "sad": "Suttrum Vizhi Chudar Thaan",
-    "rain": "Mazhai Kuruvi",
-    "dance": "Vaathi Coming",
-    "friendship": "Musthafa Musthafa",
-    "happy": "Anbe En Anbe",
-    "motivation": "Aalaporan Tamizhan",
-    "travel": "Kadhaippoma",
-    "calm": "Maruvaarthai",
-    "breakup": "Kaadhal En Kaviye"
-}
 
-# DEFAULT SONG if mood not found
-DEFAULT_SONG = "Kannana Kanney"
+# Load songs dictionary from musicConfig.py
+from musicConfig import songs, DEFAULT_SONG
 
-# ---------------------------------------------------------
 # Search Spotify for a song
-# ---------------------------------------------------------
 def search_spotify(song_name):
     try:
-        results = sp.search(q=song_name, limit=1, type="track")
+        results = sp.search(q=song_name, limit=1, type="track") 
         items = results["tracks"]["items"]
 
         if items:
@@ -49,30 +30,33 @@ def search_spotify(song_name):
 
         return None, None, None
 
-    except Exception as e:
+    except Exception:
         return None, None, None
 
 
-# ---------------------------------------------------------
 # Get Song Based on Mood
-# ---------------------------------------------------------
 def get_song_from_mood(mood):
-    mood = mood.lower()
+    mood = mood.lower()  # Accepts for case insensitivity
 
-    # Mood found in dictionary
     if mood in songs:
         song_name = songs[mood]
         return search_spotify(song_name)
 
-    # Mood NOT found → Show default song
+    # Fallback default song
     return search_spotify(DEFAULT_SONG)
 
-
-# ---------------------------------------------------------
 # Streamlit UI
-# ---------------------------------------------------------
 st.title("🎧 AI Paadal Match – Tamil Song Recommender")
 st.write("Enter your mood in one word and get a Tamil song!")
+
+def convert_to_spotify_deeplink(url):
+    try:
+        if "track" in url:
+            track_id = url.split("track/")[1].split("?")[0]
+            return f"spotify:track:{track_id}"
+        return url
+    except:
+        return url
 
 mood = st.text_input("Your mood:")
 
@@ -83,7 +67,11 @@ if st.button("Get Song"):
         name, artist, link = get_song_from_mood(mood)
 
         if link:
+            deeplink = convert_to_spotify_deeplink(link)
             st.success(f"🎵 {name} — {artist}")
-            st.markdown(f"[▶️ Listen on Spotify]({link})")
+            st.markdown(
+                f'<a href="{deeplink}">▶️ Open in Spotify App</a>',
+                unsafe_allow_html=True
+            )
         else:
-            st.error("Unable to fetch song from Spotify. Try again later.")
+            st.error("Unable to fetch song from Spotify.")
